@@ -293,6 +293,19 @@ class ObjectJob:
         obj.setEditorMode("Operations", 2)  # hide
         obj.setEditorMode("Placement", 2)
 
+        self.__setPostProcessor(obj)
+
+
+    def __setPostProcessor(self, obj, currentPost=None):
+        obj.PostProcessor = postProcessors = PathPreferences.allEnabledPostProcessors()
+        PathLog.track(obj.Label, obj.PostProcessor, currentPost)
+
+        if currentPost not in postProcessors:
+            currentPost = PathPreferences.defaultPostProcessor()
+
+        obj.PostProcessor = currentPost
+        PathLog.track(obj.PostProcessor)
+
     def setupSetupSheet(self, obj):
         if not getattr(obj, "SetupSheet", None):
             obj.addProperty(
