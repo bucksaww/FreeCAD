@@ -34,6 +34,7 @@ import PathScripts.PathSelection as PathSelection
 import PathScripts.PathSetupSheet as PathSetupSheet
 import PathScripts.PathUtil as PathUtil
 import PathScripts.PathUtils as PathUtils
+from Shapes import SpotShape
 import importlib
 
 from PySide import QtCore, QtGui
@@ -65,6 +66,7 @@ class ViewProvider(object):
         self.OpName = resources.name
         self.OpPageModule = resources.opPageClass.__module__
         self.OpPageClass = resources.opPageClass.__name__
+        vobj.addExtension("Gui::ViewProviderGroupExtensionPython")
 
         # initialized later
         self.vobj = vobj
@@ -498,6 +500,9 @@ class TaskPanelBaseGeometryPage(TaskPanelPage):
                 FreeCADGui.Selection.addSelection(obj)
         # FreeCADGui.updateGui()
 
+    def supportsSpots(self):
+        return self.features & PathOp.FeatureSpots
+
     def supportsVertexes(self):
         return self.features & PathOp.FeatureBaseVertexes
 
@@ -517,6 +522,8 @@ class TaskPanelBaseGeometryPage(TaskPanelPage):
             return 'faces'
         if self.supportsEdges():
             return 'edges'
+        if self.supportsSpots():
+            return 'spots'
         return 'nothing'
 
     def selectionSupportedAsBaseGeometry(self, selection, ignoreErrors):
@@ -527,6 +534,8 @@ class TaskPanelBaseGeometryPage(TaskPanelPage):
                 PathLog.debug(msg)
             return False
         sel = selection[0]
+        if self.supportsSpots():
+            return hasattr(sel.Object, 'Proxy') and type(sel.Object.Proxy) == SpotShape.SpotShape
         if sel.HasSubObjects:
             if not self.supportsVertexes() and selection[0].SubObjects[0].ShapeType == "Vertex":
                 if not ignoreErrors:
@@ -1043,6 +1052,12 @@ class TaskPanel(object):
                 self.featurePages.append(opPage.taskPanelDiametersPage(obj, features))
             else:
                 self.featurePages.append(TaskPanelDiametersPage(obj, features))
+
+        if PathOp.FeatureSpots & features:
+            if hasattr(opPage, 'taskPanelBaseGeometryPage'):
+                self.featurePages.append(opPage.taskPanelBaseGeometryPage(obj, features))
+            else:
+                self.featurePages.append(TaskPanelBaseGeometryPage(obj, features))
 
         self.featurePages.append(opPage)
 

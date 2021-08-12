@@ -51,20 +51,21 @@ def translate(context, text, disambig=None):
     return QtCore.QCoreApplication.translate(context, text, disambig)
 
 
-FeatureTool = 0x0001  # ToolController
-FeatureDepths = 0x0002  # FinalDepth, StartDepth
-FeatureHeights = 0x0004  # ClearanceHeight, SafeHeight
-FeatureStartPoint = 0x0008  # StartPoint
-FeatureFinishDepth = 0x0010  # FinishDepth
-FeatureStepDown = 0x0020  # StepDown
-FeatureNoFinalDepth = 0x0040  # edit or not edit FinalDepth
-FeatureBaseVertexes = 0x0100  # Base
-FeatureBaseEdges = 0x0200  # Base
-FeatureBaseFaces = 0x0400  # Base
-FeatureBasePanels = 0x0800  # Base
-FeatureLocations = 0x1000  # Locations
-FeatureCoolant = 0x2000  # Coolant
-FeatureDiameters = 0x4000  # Turning Diameters
+FeatureTool         = 0x0001     # ToolController
+FeatureDepths       = 0x0002     # FinalDepth, StartDepth
+FeatureHeights      = 0x0004     # ClearanceHeight, SafeHeight
+FeatureStartPoint   = 0x0008     # StartPoint
+FeatureFinishDepth  = 0x0010     # FinishDepth
+FeatureStepDown     = 0x0020     # StepDown
+FeatureNoFinalDepth = 0x0040     # edit or not edit FinalDepth
+FeatureBaseVertexes = 0x0100     # Base
+FeatureBaseEdges    = 0x0200     # Base
+FeatureBaseFaces    = 0x0400     # Base
+FeatureBasePanels   = 0x0800     # Base
+FeatureLocations    = 0x1000     # Locations
+FeatureCoolant      = 0x2000     # Coolant
+FeatureDiameters    = 0x4000     # Turning Diameters
+FeatureSpots        = 0x8000     # Target Spot Shape
 
 FeatureBaseGeometry = FeatureBaseVertexes | FeatureBaseFaces | FeatureBaseEdges
 
@@ -92,6 +93,7 @@ class ObjectOp(object):
         FeatureLocations     ... Base location support
         FeatureCoolant       ... Support for operation coolant
         FeatureDiameters     ... Support for turning operation diameters
+        FeatureSpots         ... Support for Spot shape (drilling-like) targets
 
     The base class handles all base API and forwards calls to subclasses with
     an op prefix. For instance, an op is not expected to overwrite onChanged(),
@@ -323,6 +325,9 @@ class ObjectOp(object):
                 ),
             )
 
+        if FeatureSpots & features:
+            obj.addProperty("App::PropertyLinkList", "Targets", "Path", QtCore.QT_TRANSLATE_NOOP("PathOp", "Lower limit of the turning diameter"))
+
         # members being set later
         self.commandlist = None
         self.horizFeed = None
@@ -346,6 +351,8 @@ class ObjectOp(object):
                 job.SetupSheet.Proxy.setOperationProperties(obj, name)
                 obj.recompute()
                 obj.Proxy = self
+        
+        obj.addExtension("App::GroupExtensionPython")
 
     def setEditorModes(self, obj, features):
         """Editor modes are not preserved during document store/restore, set editor modes for all properties"""

@@ -20,16 +20,16 @@
 # *                                                                         *
 # ***************************************************************************
 
+from Generators import helix_generator as generator
 import FreeCAD
 import Path
-
+import PathMachineState
+import PathRotation
 import PathScripts.PathCircularHoleBase as PathCircularHoleBase
 import PathScripts.PathLog as PathLog
 import PathScripts.PathOp as PathOp
+import PathFeedRate
 
-from PathScripts.PathUtils import fmt
-from PathScripts.PathUtils import findParentJob
-from PathScripts.PathUtils import sort_jobs
 from PySide import QtCore
 
 __title__ = "Path Helix Drill Operation"
@@ -42,162 +42,160 @@ __scriptVersion__ = "1b testing"
 __lastModified__ = "2019-07-12 09:50 CST"
 
 
+if True:
+        PathLog.setLevel(PathLog.Level.DEBUG, PathLog.thisModule())
+        PathLog.trackModule(PathLog.thisModule())
+else:
+        PathLog.setLevel(PathLog.Level.INFO, PathLog.thisModule())
+
 def translate(context, text, disambig=None):
     return QtCore.QCoreApplication.translate(context, text, disambig)
 
-
 class ObjectHelix(PathCircularHoleBase.ObjectOp):
-    '''Proxy class for Helix operations.'''
+    """Proxy class for Helix operations."""
 
     def circularHoleFeatures(self, obj):
-        '''circularHoleFeatures(obj) ... enable features supported by Helix.'''
-        return PathOp.FeatureStepDown | PathOp.FeatureBaseEdges | PathOp.FeatureBaseFaces
+        """circularHoleFeatures(obj) ... enable features supported by Helix."""
+        return PathOp.FeatureSpots | PathOp.FeatureCoolant
 
     def initCircularHoleOperation(self, obj):
-        '''initCircularHoleOperation(obj) ... create helix specific properties.'''
-        obj.addProperty("App::PropertyEnumeration", "Direction", "Helix Drill", translate("PathHelix", "The direction of the circular cuts, ClockWise (CW), or CounterClockWise (CCW)"))
-        obj.Direction = ['CW', 'CCW']
+        """initCircularHoleOperation(obj) ... create helix specific properties."""
+        obj.addProperty(
+            "App::PropertyEnumeration",
+            "Direction",
+            "Helix Drill",
+            translate(
+                "PathHelix",
+                "The direction of the circular cuts, ClockWise (CW), or CounterClockWise (CCW)",
+            ),
+        )
+        obj.Direction = ["CW", "CCW"]
 
-        obj.addProperty("App::PropertyEnumeration", "StartSide", "Helix Drill", translate("PathHelix", "Start cutting from the inside or outside"))
-        obj.StartSide = ['Inside', 'Outside']
+        obj.addProperty(
+            "App::PropertyEnumeration",
+            "StartSide",
+            "Helix Drill",
+            translate("PathHelix", "Start cutting from the inside or outside"),
+        )
+        obj.StartSide = ["Inside", "Outside"]
 
-        obj.addProperty("App::PropertyLength", "StepOver", "Helix Drill", translate("PathHelix", "Radius increment (must be smaller than tool diameter)"))
-        obj.addProperty("App::PropertyLength", "StartRadius", "Helix Drill", translate("PathHelix", "Starting Radius"))
+        obj.addProperty(
+            "App::PropertyLength",
+            "StepOver",
+            "Helix Drill",
+            translate(
+                "PathHelix", "Radius increment (must be smaller than tool diameter)"
+            ),
+        )
+        obj.addProperty(
+            "App::PropertyLength",
+            "StepDown",
+            "Helix Drill",
+            translate("PathHelix", "step down value"),
+        )
+
+        obj.addProperty(
+            "App::PropertyLength",
+            "StartRadius",
+            "Helix Drill",
+            translate("PathHelix", "Starting Radius"),
+        )
 
     def opOnDocumentRestored(self, obj):
-        if not hasattr(obj, 'StartRadius'):
-            obj.addProperty("App::PropertyLength", "StartRadius", "Helix Drill", translate("PathHelix", "Starting Radius"))
+        if not hasattr(obj, "StartRadius"):
+            obj.addProperty(
+                "App::PropertyLength",
+                "StartRadius",
+                "Helix Drill",
+                translate("PathHelix", "Starting Radius"),
+            )
 
-    def circularHoleExecute(self, obj, holes):
-        '''circularHoleExecute(obj, holes) ... generate helix commands for each hole in holes'''
+    def circularHoleExecute(self, obj):
+        """circularHoleExecute(obj, holes) ... generate helix commands for each hole in holes"""
         PathLog.track()
-        self.commandlist.append(Path.Command('(helix cut operation)'))
+        machine = PathMachineState.MachineState()
 
-        self.commandlist.append(Path.Command('G0', {'Z': obj.ClearanceHeight.Value, 'F': self.vertRapid}))
+        self.commandlist.append(Path.Command("(helix cut operation)"))
 
-        zsafe = max(baseobj.Shape.BoundBox.ZMax for baseobj, features in obj.Base) + obj.ClearanceHeight.Value
-        output = ''
-        output += "G0 Z" + fmt(zsafe)
+        # rapid to clearance height
+        command = Path.Command(
+            "G0", {"Z": obj.ClearanceHeight.Value, "F": self.vertRapid}
+        )
+        machine.addCommand(command)
+        self.commandlist.append(command)
 
-        holes = sort_jobs(holes, ['x', 'y'])
-        for hole in holes:
-            output += self.helix_cut(obj, hole['x'], hole['y'], hole['r'] / 2, float(obj.StartRadius.Value), (float(obj.StepOver.Value) / 50.0) * self.radius)
-        PathLog.debug(output)
+        # Op can store both individual targets and target groups. Flatten the
+        # list
+        flatlist = []
+        for target in obj.Group:
+            target = getattr(target, "LinkedObject", target)
+            flatlist.extend(getattr(target, "Group", [target]))
 
-    def helix_cut(self, obj, x0, y0, r_out, r_in, dr):
-        '''helix_cut(obj, x0, y0, r_out, r_in, dr) ... generate helix commands for specified hole.
-            x0, y0: coordinates of center
-            r_out, r_in: outer and inner radius of the hole
-            dr: step over radius value'''
-        from numpy import ceil, linspace
+        # if any location sorting is needed, it should be done here
+        # holes = PathUtils.sort_jobs(holes, ['x', 'y'])
 
-        if (obj.StartDepth.Value <= obj.FinalDepth.Value):
-            return ""
+        PathLog.track(flatlist)
+        for target in flatlist:
+            if not target.Active:
+                continue
+            (edge, diam) = target.Proxy.getShape(target)
+            try:
+                rotation, edge = PathRotation.setRotationForEdgeCA(
+                    edge, aMin=0, aMax=90
+                )
+            except ValueError:
+                FreeCAD.Console.PrintWarning(
+                    "Target {} is not reachable with the current configuration\n".format(
+                        target.Label
+                    )
+                )
+                continue
 
-        out = "(helix_cut <{0}, {1}>, {2})".format(
-            x0, y0, ", ".join(map(str, (r_out, r_in, dr, obj.StartDepth.Value,
-                                        obj.FinalDepth.Value, obj.StepDown.Value, obj.SafeHeight.Value,
-                                        self.radius, self.vertFeed, self.horizFeed, obj.Direction, obj.StartSide))))
+            # Add offsets for start and endpoint
+            startpoint = edge.Vertexes[0].Point
 
-        nz = max(int(ceil((obj.StartDepth.Value - obj.FinalDepth.Value) / obj.StepDown.Value)), 2)
-        zi = linspace(obj.StartDepth.Value, obj.FinalDepth.Value, 2 * nz + 1)
+            # if rotation is needed, reposition safely
+            if machine.A != rotation["A"] or machine.C != rotation["C"]:
 
-        def xyz(x=None, y=None, z=None):
-            out = ""
-            if x is not None:
-                out += " X" + fmt(x)
-            if y is not None:
-                out += " Y" + fmt(y)
-            if z is not None:
-                out += " Z" + fmt(z)
-            return out
+                # Move to clearance height
+                command = Path.Command(
+                    "G0", {"Z": obj.ClearanceHeight.Value, "F": self.vertRapid}
+                )
+                self.commandlist.append(command)
+                machine.addCommand(command)
 
-        def rapid(x=None, y=None, z=None):
-            return "G0" + xyz(x, y, z) + "\n"
+                # Perform Rotation
+                command = Path.Command(
+                    "G0 A{} C{}".format(rotation["A"], rotation["C"])
+                )
+                self.commandlist.append(command)
+                machine.addCommand(command)
 
-        def F(f=None):
-            return (" F" + fmt(f) if f else "")
+            # Move to start point
+            startpoint = edge.Vertexes[0].Point
+            command = Path.Command(
+                "G0 X{} Y{} Z{}".format(startpoint.x, startpoint.y, startpoint.z)
+            )
+            self.commandlist.append(command)
+            machine.addCommand(command)
 
-        def feed(x=None, y=None, z=None, f=None):
-            return "G1" + xyz(x, y, z) + F(f) + "\n"
+            # Perform helix move
+            commands = generator.generate(
+                edge=edge,
+                hole_radius=diam / 2,
+                step_down=obj.StepDown.Value,
+                step_over=(float(obj.StepOver.Value) / 50.0) * self.radius,
+                tool_diameter=obj.ToolController.Tool.Diameter.Value,
+                safeheight=obj.SafeHeight.Value,
+                inner_radius=obj.StartRadius.Value,
+                direction=obj.Direction,
+                startAt=obj.StartSide,
+            )
+            self.commandlist.extend(commands)
+            for c in commands:
+                machine.addCommand(c)
 
-        def arc(x, y, i, j, z, f):
-            if obj.Direction == "CW":
-                code = "G2"
-            elif obj.Direction == "CCW":
-                code = "G3"
-            return code + " I" + fmt(i) + " J" + fmt(j) + " X" + fmt(x) + " Y" + fmt(y) + " Z" + fmt(z) + F(f) + "\n"
-
-        def helix_cut_r(r):
-            arc_cmd = 'G2' if obj.Direction == 'CW' else 'G3'
-            out = ""
-            out += rapid(x=x0 + r, y=y0)
-            self.commandlist.append(Path.Command('G0', {'X': x0 + r, 'Y': y0, 'F': self.horizRapid}))
-            out += rapid(z=obj.StartDepth.Value + 2 * self.radius)
-            self.commandlist.append(Path.Command('G0', {'Z': obj.SafeHeight.Value, 'F': self.vertRapid}))
-            out += feed(z=obj.StartDepth.Value, f=self.vertFeed)
-            self.commandlist.append(Path.Command('G1', {'Z': obj.StartDepth.Value, 'F': self.vertFeed}))
-            # z = obj.FinalDepth.Value
-            for i in range(1, nz + 1):
-                out += arc(x0 - r, y0, i=-r, j=0.0, z=zi[2 * i - 1], f=self.horizFeed)
-                self.commandlist.append(Path.Command(arc_cmd, {'X': x0 - r, 'Y': y0, 'Z': zi[2 * i - 1], 'I': -r, 'J': 0.0, 'F': self.horizFeed}))
-                out += arc(x0 + r, y0, i=r, j=0.0, z=zi[2 * i], f=self.horizFeed)
-                self.commandlist.append(Path.Command(arc_cmd, {'X': x0 + r, 'Y': y0, 'Z': zi[2 * i], 'I': r, 'J': 0.0, 'F': self.horizFeed}))
-            out += arc(x0 - r, y0, i=-r, j=0.0, z=obj.FinalDepth.Value, f=self.horizFeed)
-            self.commandlist.append(Path.Command(arc_cmd, {'X': x0 - r, 'Y': y0, 'Z': obj.FinalDepth.Value, 'I': -r, 'J': 0.0, 'F': self.horizFeed}))
-            out += arc(x0 + r, y0, i=r, j=0.0, z=obj.FinalDepth.Value, f=self.horizFeed)
-            self.commandlist.append(Path.Command(arc_cmd, {'X': x0 + r, 'Y': y0, 'Z': obj.FinalDepth.Value, 'I': r, 'J': 0.0, 'F': self.horizFeed}))
-            out += feed(z=obj.StartDepth.Value + 2 * self.radius, f=self.vertFeed)
-            out += rapid(z=obj.SafeHeight.Value)
-            self.commandlist.append(Path.Command('G0', {'Z': obj.SafeHeight.Value, 'F': self.vertRapid}))
-            return out
-
-        msg = None
-        if r_out < 0.0:
-            msg = "r_out < 0"
-        elif r_in > 0 and r_out - r_in < 2 * self.radius:
-            msg = "r_out - r_in = {0} is < tool diameter of {1}".format(r_out - r_in, 2 * self.radius)
-        elif r_in == 0.0 and not r_out > self.radius / 2.:
-            msg = "Cannot helix a hole of diameter {0} with a tool of diameter {1}".format(2 * r_out, 2 * self.radius)
-        elif obj.StartSide not in ["Inside", "Outside"]:
-            msg = "Invalid value for parameter 'obj.StartSide'"
-        elif r_in > 0:
-            out += "(annulus mode)\n"
-            r_out = r_out - self.radius
-            r_in = r_in + self.radius
-            if abs((r_out - r_in) / dr) < 1e-5:
-                radii = [(r_out + r_in) / 2]
-            else:
-                nr = max(int(ceil((r_out - r_in) / dr)), 2)
-                radii = linspace(r_out, r_in, nr)
-        elif r_out <= 2 * dr:
-            out += "(single helix mode)\n"
-            radii = [r_out - self.radius]
-            if radii[0] <= 0:
-                msg = "Cannot helix a hole of diameter {0} with a tool of diameter {1}".format(2 * r_out, 2 * self.radius)
-        else:
-            out += "(full hole mode)\n"
-            r_out = r_out - self.radius
-            r_in = dr / 2
-
-            nr = max(1 + int(ceil((r_out - r_in) / dr)), 2)
-            radii = [r for r in linspace(r_out, r_in, nr) if r > 0]
-            if not radii:
-                msg = "Cannot helix a hole of diameter {0} with a tool of diameter {1}".format(2 * r_out, 2 * self.radius)
-
-        if msg:
-            out += "(ERROR: Hole at {0}: ".format((x0, y0, obj.StartDepth.Value)) + msg + ")\n"
-            PathLog.error("{0} - ".format((x0, y0, obj.StartDepth.Value)) + msg)
-            return out
-
-        if obj.StartSide == "Inside":
-            radii = radii[::-1]
-
-        for r in radii:
-            out += "(radius {0})\n".format(r)
-            out += helix_cut_r(r)
-
-        return out
+        PathFeedRate.setFeedRate(self.commandlist, obj.ToolController)
 
     def opSetDefaultValues(self, obj, job):
         obj.Direction = "CW"

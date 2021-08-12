@@ -285,6 +285,10 @@ class ALLGate(PathBaseGate):
             return True
         return False
 
+class SPOTGate(PathBaseGate):
+    def allow(self, doc, obj, sub):  # pylint: disable=unused-argument
+        return hasattr(obj, 'Proxy') and str(type(obj.Proxy)) == "<class 'Shapes.SpotShape.SpotShape'>"
+
 
 def contourselect():
     FreeCADGui.Selection.addSelectionGate(CONTOURGate())
@@ -377,14 +381,19 @@ def turnselect():
     if not PathPreferences.suppressSelectionModeWarning():
         FreeCAD.Console.PrintWarning("Turning Select Mode\n")
 
+def spotselect():
+    FreeCADGui.Selection.addSelectionGate(SPOTGate())
+    if not PathPreferences.suppressSelectionModeWarning():
+        FreeCAD.Console.PrintWarning("Spot Select Mode\n")
+
 
 def select(op):
     opsel = {}
     opsel['Contour'] = contourselect  # (depreciated)
     opsel['Deburr'] = chamferselect
-    opsel['Drilling'] = drillselect
+    opsel['Drilling'] = spotselect
     opsel['Engrave'] = engraveselect
-    opsel['Helix'] = drillselect
+    opsel['Helix'] = spotselect
     opsel['MillFace'] = pocketselect
     opsel['Pocket'] = pocketselect
     opsel['Pocket 3D'] = pocketselect

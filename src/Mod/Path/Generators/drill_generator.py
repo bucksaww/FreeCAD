@@ -73,6 +73,12 @@ def generate(edge, dwelltime=0.0, peckdepth=0.0, repeat=1):
     cmdParams["Z"] = endPoint.z
     cmdParams["R"] = startPoint.z
 
+    if repeat < 1:
+        raise ValueError("repeat must be 1 or greater")
+
+    if not type(repeat) is int:
+        raise ValueError("repeat value must be an integer")
+
     if repeat > 1:
         cmdParams["L"] = repeat
 

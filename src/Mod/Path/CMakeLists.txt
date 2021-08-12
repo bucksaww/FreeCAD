@@ -7,8 +7,13 @@ if(BUILD_GUI)
 endif(BUILD_GUI)
 
 set(Path_Scripts
+    DocumentObservers.py
     Init.py
     PathCommands.py
+    PathFeedRate.py
+    PathMachineState.py
+    PathRotation.py
+    PathTargetShapes.py
     TestPathApp.py
     PathMachineState.py
     PathFeedRate.py
@@ -263,6 +268,16 @@ SET(PathData_Threads
     Data/Threads/imperial-internal.csv
 )
 
+SET(PathShapes_SRCS
+    Shapes/__init__.py
+    Shapes/AreaClearingShape.py
+    Shapes/VolumeClearingShape.py
+    Shapes/drillableLib.py
+    Shapes/LineFollowingShape.py
+    Shapes/SpotShape.py
+    Shapes/TargetShape.py
+)
+
 SET(Path_Data
     ${PathData_Threads}
 )
@@ -277,6 +292,7 @@ SET(all_files
     ${Tools_Shape_SRCS}
     ${Path_Images}
     ${Path_Data}
+    ${PathShapes_SRCS}
 )
 
 ADD_CUSTOM_TARGET(PathScripts ALL
@@ -322,7 +338,6 @@ INSTALL(
   DESTINATION
         Mod/Path/PathTests
 )
-
 
 INSTALL(
     FILES
@@ -380,3 +395,9 @@ INSTALL(
         Mod/Path/Data/Threads
 )
 
+INSTALL(
+    FILES
+      ${PathShapes_SRCS}
+    DESTINATION
+      Mod/Path/Shapes
+)

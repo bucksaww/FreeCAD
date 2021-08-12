@@ -43,8 +43,11 @@ __doc__ = "Path Drilling operation."
 __contributors__ = "IMBack!"
 
 
-PathLog.setLevel(PathLog.Level.DEBUG, PathLog.thisModule())
-PathLog.trackModule(PathLog.thisModule())
+if True:
+        PathLog.setLevel(PathLog.Level.DEBUG, PathLog.thisModule())
+        PathLog.trackModule(PathLog.thisModule())
+else:
+        PathLog.setLevel(PathLog.Level.INFO, PathLog.thisModule())
 
 
 # Qt translation handling
@@ -57,9 +60,8 @@ class ObjectDrilling(PathCircularHoleBase.ObjectOp):
 
     def circularHoleFeatures(self, obj):
         """circularHoleFeatures(obj) ... drilling works on anything, turn on all Base geometries and Locations."""
-        return (
-            PathOp.FeatureBaseGeometry | PathOp.FeatureLocations | PathOp.FeatureCoolant
-        )
+        # return PathOp.FeatureBaseGeometry | PathOp.FeatureLocations | PathOp.FeatureCoolant
+        return PathOp.FeatureSpots | PathOp.FeatureCoolant
 
     def initCircularHoleOperation(self, obj):
         """initCircularHoleOperation(obj) ... add drilling specific properties to obj."""

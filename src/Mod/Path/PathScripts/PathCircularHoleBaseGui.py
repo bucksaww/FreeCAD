@@ -66,29 +66,47 @@ class TaskPanelHoleGeometryPage(PathOpGui.TaskPanelBaseGeometryPage):
         self.form.baseList.blockSignals(True)
         self.form.baseList.clearContents()
         self.form.baseList.setRowCount(0)
-        for (base, subs) in obj.Base:
-            for sub in subs:
-                self.form.baseList.insertRow(self.form.baseList.rowCount())
+        for target in obj.Targets:
+            self.form.baseList.insertRow(self.form.baseList.rowCount())
+            item = QtGui.QTableWidgetItem("%s" % (target.Label))
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
 
-                item = QtGui.QTableWidgetItem("%s.%s" % (base.Label, sub))
-                item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
-                if obj.Proxy.isHoleEnabled(obj, base, sub):
-                    item.setCheckState(QtCore.Qt.Checked)
-                else:
-                    item.setCheckState(QtCore.Qt.Unchecked)
-                name = "%s.%s" % (base.Name, sub)
-                item.setData(self.DataFeatureName, name)
-                item.setData(self.DataObject, base)
-                item.setData(self.DataObjectSub, sub)
-                self.form.baseList.setItem(self.form.baseList.rowCount()-1, 0, item)
+            name = "%s" % (target.Name)
+            item.setData(self.DataFeatureName, name)
+            item.setData(self.DataObject, target)
+            # item.setData(self.DataObjectSub, sub)
+            self.form.baseList.setItem(self.form.baseList.rowCount()-1, 0, item)
 
-                dia = obj.Proxy.holeDiameter(obj, base, sub)
-                item = QtGui.QTableWidgetItem("{:.3f}".format(dia))
-                item.setData(self.DataFeatureName, name)
-                item.setData(self.DataObject, base)
-                item.setData(self.DataObjectSub, sub)
-                item.setTextAlignment(QtCore.Qt.AlignHCenter)
-                self.form.baseList.setItem(self.form.baseList.rowCount()-1, 1, item)
+            (edge, dia) = target.Proxy.getShape(target)
+            item = QtGui.QTableWidgetItem("{:.3f}".format(dia))
+            item.setData(self.DataFeatureName, name)
+            item.setData(self.DataObject, target)
+            # item.setData(self.DataObjectSub, sub)
+            item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            self.form.baseList.setItem(self.form.baseList.rowCount()-1, 1, item)
+        # for (base, subs) in obj.Base:
+        #     for sub in subs:
+        #         self.form.baseList.insertRow(self.form.baseList.rowCount())
+
+        #         item = QtGui.QTableWidgetItem("%s.%s" % (base.Label, sub))
+        #         item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+        #         if obj.Proxy.isHoleEnabled(obj, base, sub):
+        #             item.setCheckState(QtCore.Qt.Checked)
+        #         else:
+        #             item.setCheckState(QtCore.Qt.Unchecked)
+        #         name = "%s.%s" % (base.Name, sub)
+        #         item.setData(self.DataFeatureName, name)
+        #         item.setData(self.DataObject, base)
+        #         item.setData(self.DataObjectSub, sub)
+        #         self.form.baseList.setItem(self.form.baseList.rowCount()-1, 0, item)
+
+        #         dia = obj.Proxy.holeDiameter(obj, base, sub)
+        #         item = QtGui.QTableWidgetItem("{:.3f}".format(dia))
+        #         item.setData(self.DataFeatureName, name)
+        #         item.setData(self.DataObject, base)
+        #         item.setData(self.DataObjectSub, sub)
+        #         item.setTextAlignment(QtCore.Qt.AlignHCenter)
+        #         self.form.baseList.setItem(self.form.baseList.rowCount()-1, 1, item)
 
         self.form.baseList.resizeColumnToContents(0)
         self.form.baseList.blockSignals(False)

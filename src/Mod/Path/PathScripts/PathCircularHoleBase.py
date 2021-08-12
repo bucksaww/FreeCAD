@@ -54,16 +54,10 @@ class ObjectOp(PathOp.ObjectOp):
     """Base class for proxy objects of all operations on circular holes."""
 
     def opFeatures(self, obj):
-        """opFeatures(obj) ... calls circularHoleFeatures(obj) and ORs in the standard features required for processing circular holes.
-        Do not overwrite, implement circularHoleFeatures(obj) instead"""
-        return (
-            PathOp.FeatureTool
-            | PathOp.FeatureDepths
-            | PathOp.FeatureHeights
-            | PathOp.FeatureBaseFaces
-            | self.circularHoleFeatures(obj)
-            | PathOp.FeatureCoolant
-        )
+        '''opFeatures(obj) ... calls circularHoleFeatures(obj) and ORs in the standard features required for processing circular holes.
+        Do not overwrite, implement circularHoleFeatures(obj) instead'''
+        return PathOp.FeatureTool | PathOp.FeatureSpots | PathOp.FeatureHeights \
+            | self.circularHoleFeatures(obj) | PathOp.FeatureCoolant
 
     def circularHoleFeatures(self, obj):
         """circularHoleFeatures(obj) ... overwrite to add operations specific features.
@@ -86,76 +80,67 @@ class ObjectOp(PathOp.ObjectOp):
         Can safely be overwritten by subclasses."""
         pass
 
-    def holeDiameter(self, obj, base, sub):
-        """holeDiameter(obj, base, sub) ... returns the diameter of the specified hole."""
-        try:
-            shape = base.Shape.getElement(sub)
-            if shape.ShapeType == "Vertex":
-                return 0
+    # def holeDiameter(self, obj, base, sub):
+    #     '''holeDiameter(obj, base, sub) ... returns the diameter of the specified hole.'''
+    #     if self.baseIsArchPanel(obj, base):
+    #         edge = self.getArchPanelEdge(obj, base, sub)
+    #         return edge.BoundBox.XLength
 
-            if shape.ShapeType == "Edge" and type(shape.Curve) == Part.Circle:
-                return shape.Curve.Radius * 2
+    #     try:
+    #         shape = base.Shape.getElement(sub)
+    #         if shape.ShapeType == 'Vertex':
+    #             return 0
 
-            if shape.ShapeType == "Face":
-                for i in range(len(shape.Edges)):
-                    if (
-                        type(shape.Edges[i].Curve) == Part.Circle
-                        and shape.Edges[i].Curve.Radius * 2
-                        < shape.BoundBox.XLength * 1.1
-                        and shape.Edges[i].Curve.Radius * 2
-                        > shape.BoundBox.XLength * 0.9
-                    ):
-                        return shape.Edges[i].Curve.Radius * 2
+    #         if shape.ShapeType == 'Edge' and type(shape.Curve) == Part.Circle:
+    #             return shape.Curve.Radius * 2
 
-            # for all other shapes the diameter is just the dimension in X.
-            # This may be inaccurate as the BoundBox is calculated on the tessellated geometry
-            PathLog.warning(
-                translate(
-                    "Path",
-                    "Hole diameter may be inaccurate due to tessellation on face. Consider selecting hole edge.",
-                )
-            )
-            return shape.BoundBox.XLength
-        except Part.OCCError as e:
-            PathLog.error(e)
+    #         if shape.ShapeType == 'Face':
+    #             for i in range(len(shape.Edges)):
+    #                 if (type(shape.Edges[i].Curve) == Part.Circle and
+    #                     shape.Edges[i].Curve.Radius * 2 < shape.BoundBox.XLength*1.1 and
+    #                     shape.Edges[i].Curve.Radius * 2 > shape.BoundBox.XLength*0.9):
+    #                     return shape.Edges[i].Curve.Radius * 2
 
-        return 0
+    #         # for all other shapes the diameter is just the dimension in X.
+    #         # This may be inaccurate as the BoundBox is calculated on the tessellated geometry
+    #         PathLog.warning(translate("Path", "Hole diameter may be inaccurate due to tessellation on face. Consider selecting hole edge."))
+    #         return shape.BoundBox.XLength
+    #     except Part.OCCError as e:
+    #         PathLog.error(e)
 
-    def holePosition(self, obj, base, sub):
-        """holePosition(obj, base, sub) ... returns a Vector for the position defined by the given features.
-        Note that the value for Z is set to 0."""
+    #     return 0
 
-        try:
-            shape = base.Shape.getElement(sub)
-            if shape.ShapeType == "Vertex":
-                return FreeCAD.Vector(shape.X, shape.Y, 0)
+    # def holePosition(self, obj, base, sub):
+    #     '''holePosition(obj, base, sub) ... returns a Vector for the position defined by the given features.
+    #     Note that the value for Z is set to 0.'''
+    #     if self.baseIsArchPanel(obj, base):
+    #         edge = self.getArchPanelEdge(obj, base, sub)
+    #         center = edge.Curve.Center
+    #         return FreeCAD.Vector(center.x, center.y, 0)
 
-            if shape.ShapeType == "Edge" and hasattr(shape.Curve, "Center"):
-                return FreeCAD.Vector(shape.Curve.Center.x, shape.Curve.Center.y, 0)
+    #     try:
+    #         shape = base.Shape.getElement(sub)
+    #         if shape.ShapeType == 'Vertex':
+    #             return FreeCAD.Vector(shape.X, shape.Y, 0)
 
-            if shape.ShapeType == "Face":
-                if hasattr(shape.Surface, "Center"):
-                    return FreeCAD.Vector(
-                        shape.Surface.Center.x, shape.Surface.Center.y, 0
-                    )
-                if len(shape.Edges) == 1 and type(shape.Edges[0].Curve) == Part.Circle:
-                    return shape.Edges[0].Curve.Center
-        except Part.OCCError as e:
-            PathLog.error(e)
+    #         if shape.ShapeType == 'Edge' and hasattr(shape.Curve, 'Center'):
+    #             return FreeCAD.Vector(shape.Curve.Center.x, shape.Curve.Center.y, 0)
 
-        PathLog.error(
-            translate(
-                "Path",
-                "Feature %s.%s cannot be processed as a circular hole - please remove from Base geometry list.",
-            )
-            % (base.Label, sub)
-        )
-        return None
+    #         if shape.ShapeType == 'Face':
+    #             if hasattr(shape.Surface, 'Center'):
+    #                 return FreeCAD.Vector(shape.Surface.Center.x, shape.Surface.Center.y, 0)
+    #             if len(shape.Edges) == 1 and type(shape.Edges[0].Curve) == Part.Circle:
+    #                 return shape.Edges[0].Curve.Center
+    #     except Part.OCCError as e:
+    #         PathLog.error(e)
 
-    def isHoleEnabled(self, obj, base, sub):
-        """isHoleEnabled(obj, base, sub) ... return true if hole is enabled."""
-        name = "%s.%s" % (base.Name, sub)
-        return name not in obj.Disabled
+    #     PathLog.error(translate("Path", "Feature %s.%s cannot be processed as a circular hole - please remove from Base geometry list.") % (base.Label, sub))
+    #     return None
+
+    # def isHoleEnabled(self, obj, base, sub):
+    #     '''isHoleEnabled(obj, base, sub) ... return true if hole is enabled.'''
+    #     name = "%s.%s" % (base.Name, sub)
+    #     return not name in obj.Disabled
 
     def opExecute(self, obj):
         """opExecute(obj) ... processes all Base features and Locations and collects
@@ -166,33 +151,29 @@ class ObjectOp(PathOp.ObjectOp):
         Do not overwrite, implement circularHoleExecute(obj, holes) instead."""
         PathLog.track()
 
-        def haveLocations(self, obj):
-            if PathOp.FeatureLocations & self.opFeatures(obj):
-                return len(obj.Locations) != 0
-            return False
+        self.circularHoleExecute(obj)
 
-        holes = []
+        # def haveLocations(self, obj):
+        #     if PathOp.FeatureLocations & self.opFeatures(obj):
+        #         return len(obj.Locations) != 0
+        #     return False
 
-        for base, subs in obj.Base:
-            for sub in subs:
-                PathLog.debug("processing {} in {}".format(sub, base.Name))
-                if self.isHoleEnabled(obj, base, sub):
-                    pos = self.holePosition(obj, base, sub)
-                    if pos:
-                        holes.append(
-                            {
-                                "x": pos.x,
-                                "y": pos.y,
-                                "r": self.holeDiameter(obj, base, sub),
-                            }
-                        )
+        # holes = []
 
-        if haveLocations(self, obj):
-            for location in obj.Locations:
-                holes.append({"x": location.x, "y": location.y, "r": 0})
+        # for base, subs in obj.Base:
+        #     for sub in subs:
+        #         PathLog.debug('processing {} in {}'.format(sub, base.Name))
+        #         if self.isHoleEnabled(obj, base, sub):
+        #             pos = self.holePosition(obj, base, sub)
+        #             if pos:
+        #                 holes.append({'x': pos.x, 'y': pos.y, 'r': self.holeDiameter(obj, base, sub)})
 
-        if len(holes) > 0:
-            self.circularHoleExecute(obj, holes)
+        # if haveLocations(self, obj):
+        #     for location in obj.Locations:
+        #         holes.append({'x': location.x, 'y': location.y, 'r': 0})
+
+        # if len(holes) > 0:
+        #     self.circularHoleExecute(obj, holes)
 
     def circularHoleExecute(self, obj, holes):
         """circularHoleExecute(obj, holes) ... implement processing of holes.
@@ -202,87 +183,72 @@ class ObjectOp(PathOp.ObjectOp):
         pass
 
     def findAllHoles(self, obj):
-        """findAllHoles(obj) ... find all holes of all base models and assign as features."""
-        PathLog.track()
-        if not self.getJob(obj):
-            return
-        features = []
-        for base in self.model:
-            features.extend(self.findHoles(obj, base))
-        obj.Base = features
-        obj.Disabled = []
+        pass
+        '''findAllHoles(obj) ... find all holes of all base models and assign as features.'''
+        # PathLog.track()
+        # if not self.getJob(obj):
+        #     return
+        # features = []
+        # if 1 == len(self.model) and self.baseIsArchPanel(obj, self.model[0]):
+        #     panel = self.model[0]
+        #     holeshapes = panel.Proxy.getHoles(panel, transform=True)
+        #     tooldiameter = float(obj.ToolController.Proxy.getTool(obj.ToolController).Diameter)
+        #     for holeNr, hole in enumerate(holeshapes):
+        #         PathLog.debug('Entering new HoleShape')
+        #         for wireNr, wire in enumerate(hole.Wires):
+        #             PathLog.debug('Entering new Wire')
+        #             for edgeNr, edge in enumerate(wire.Edges):
+        #                 if PathUtils.isDrillable(panel, edge, tooldiameter):
+        #                     PathLog.debug('Found drillable hole edges: {}'.format(edge))
+        #                     features.append((panel, "%d.%d.%d" % (holeNr, wireNr, edgeNr)))
+        # else:
+        #     for base in self.model:
+        #         features.extend(self.findHoles(obj, base))
+        # obj.Base = features
+        # obj.Disabled = []
 
     def findHoles(self, obj, baseobject):
-        """findHoles(obj, baseobject) ... inspect baseobject and identify all features that resemble a straight cricular hole."""
-        shape = baseobject.Shape
-        PathLog.track("obj: {} shape: {}".format(obj, shape))
-        holelist = []
-        features = []
-        # tooldiameter = float(obj.ToolController.Proxy.getTool(obj.ToolController).Diameter)
-        tooldiameter = None
-        PathLog.debug(
-            "search for holes larger than tooldiameter: {}: ".format(tooldiameter)
-        )
-        if DraftGeomUtils.isPlanar(shape):
-            PathLog.debug("shape is planar")
-            for i in range(len(shape.Edges)):
-                candidateEdgeName = "Edge" + str(i + 1)
-                e = shape.getElement(candidateEdgeName)
-                if PathUtils.isDrillable(shape, e, tooldiameter):
-                    PathLog.debug(
-                        "edge candidate: {} (hash {})is drillable ".format(
-                            e, e.hashCode()
-                        )
-                    )
-                    x = e.Curve.Center.x
-                    y = e.Curve.Center.y
-                    diameter = e.BoundBox.XLength
-                    holelist.append(
-                        {
-                            "featureName": candidateEdgeName,
-                            "feature": e,
-                            "x": x,
-                            "y": y,
-                            "d": diameter,
-                            "enabled": True,
-                        }
-                    )
-                    features.append((baseobject, candidateEdgeName))
-                    PathLog.debug(
-                        "Found hole feature %s.%s"
-                        % (baseobject.Label, candidateEdgeName)
-                    )
-        else:
-            PathLog.debug("shape is not planar")
-            for i in range(len(shape.Faces)):
-                candidateFaceName = "Face" + str(i + 1)
-                f = shape.getElement(candidateFaceName)
-                if PathUtils.isDrillable(shape, f, tooldiameter):
-                    PathLog.debug("face candidate: {} is drillable ".format(f))
-                    if hasattr(f.Surface, "Center"):
-                        x = f.Surface.Center.x
-                        y = f.Surface.Center.y
-                        diameter = f.BoundBox.XLength
-                    else:
-                        center = f.Edges[0].Curve.Center
-                        x = center.x
-                        y = center.y
-                        diameter = f.Edges[0].Curve.Radius * 2
-                    holelist.append(
-                        {
-                            "featureName": candidateFaceName,
-                            "feature": f,
-                            "x": x,
-                            "y": y,
-                            "d": diameter,
-                            "enabled": True,
-                        }
-                    )
-                    features.append((baseobject, candidateFaceName))
-                    PathLog.debug(
-                        "Found hole feature %s.%s"
-                        % (baseobject.Label, candidateFaceName)
-                    )
+        '''findHoles(obj, baseobject) ... inspect baseobject and identify all features that resemble a straight cricular hole.'''
+        pass
+        # shape = baseobject.Shape
+        # PathLog.track('obj: {} shape: {}'.format(obj, shape))
+        # holelist = []
+        # features = []
+        # # tooldiameter = float(obj.ToolController.Proxy.getTool(obj.ToolController).Diameter)
+        # tooldiameter = None
+        # PathLog.debug('search for holes larger than tooldiameter: {}: '.format(tooldiameter))
+        # if DraftGeomUtils.isPlanar(shape):
+        #     PathLog.debug("shape is planar")
+        #     for i in range(len(shape.Edges)):
+        #         candidateEdgeName = "Edge" + str(i + 1)
+        #         e = shape.getElement(candidateEdgeName)
+        #         if PathUtils.isDrillable(shape, e, tooldiameter):
+        #             PathLog.debug('edge candidate: {} (hash {})is drillable '.format(e, e.hashCode()))
+        #             x = e.Curve.Center.x
+        #             y = e.Curve.Center.y
+        #             diameter = e.BoundBox.XLength
+        #             holelist.append({'featureName': candidateEdgeName, 'feature': e, 'x': x, 'y': y, 'd': diameter, 'enabled': True})
+        #             features.append((baseobject, candidateEdgeName))
+        #             PathLog.debug("Found hole feature %s.%s" % (baseobject.Label, candidateEdgeName))
+        # else:
+        #     PathLog.debug("shape is not planar")
+        #     for i in range(len(shape.Faces)):
+        #         candidateFaceName = "Face" + str(i + 1)
+        #         f = shape.getElement(candidateFaceName)
+        #         if PathUtils.isDrillable(shape, f, tooldiameter):
+        #             PathLog.debug('face candidate: {} is drillable '.format(f))
+        #             if hasattr(f.Surface, 'Center'):
+        #                 x = f.Surface.Center.x
+        #                 y = f.Surface.Center.y
+        #                 diameter = f.BoundBox.XLength
+        #             else:
+        #                 center = f.Edges[0].Curve.Center
+        #                 x = center.x
+        #                 y = center.y
+        #                 diameter = f.Edges[0].Curve.Radius * 2
+        #             holelist.append({'featureName': candidateFaceName, 'feature': f, 'x': x, 'y': y, 'd': diameter, 'enabled': True})
+        #             features.append((baseobject, candidateFaceName))
+        #             PathLog.debug("Found hole feature %s.%s" % (baseobject.Label, candidateFaceName))
 
-        PathLog.debug("holes found: {}".format(holelist))
-        return features
+        # PathLog.debug("holes found: {}".format(holelist))
+        # return features

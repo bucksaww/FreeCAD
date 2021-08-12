@@ -180,6 +180,10 @@ class OpPrototype(object):
         self.DoNotSetDefaultValues = True
         self.Proxy = None
 
+    def addExtension(self, dummystring):
+        #Necessary to allow ops to have extensions.
+        pass
+
     def __setattr__(self, name, val):
         if name in ['Label', 'DoNotSetDefaultValues', 'properties', 'Proxy']:
             if name == 'Proxy':
