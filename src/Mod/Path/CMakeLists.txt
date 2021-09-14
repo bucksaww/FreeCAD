@@ -12,7 +12,6 @@ set(Path_Scripts
     PathCommands.py
     PathFeedRate.py
     PathMachineState.py
-    PathRotation.py
     PathTargetShapes.py
     TestPathApp.py
     PathMachineState.py
@@ -106,7 +105,6 @@ SET(PathScripts_SRCS
     PathScripts/PathProfileFaces.py
     PathScripts/PathProfileFacesGui.py
     PathScripts/PathProfileGui.py
-    PathScripts/PathProperty.py
     PathScripts/PathPropertyBag.py
     PathScripts/PathPropertyBagGui.py
     PathScripts/PathPropertyEditor.py
