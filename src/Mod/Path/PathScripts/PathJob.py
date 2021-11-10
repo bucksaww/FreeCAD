@@ -73,7 +73,6 @@ def isResourceClone(obj, propLink, resourceName):
         return True
     return False
 
-
 def createResourceClone(obj, orig, name, icon):
 
     clone = Draft.clone(orig)
@@ -89,9 +88,27 @@ def createResourceClone(obj, orig, name, icon):
     obj.Document.recompute()  # necessary to create the clone shape
     return clone
 
+def createResourceLink(obj, orig, name, icon):
+
+    link = FreeCAD.ActiveDocument.addObject('App::Link')
+    link.setLink(orig)
+    link.Label = "%s-%s" % (name, orig.Label)
+    link.addProperty("App::PropertyString", "PathResource")
+    link.PathResource = name
+
+    # if link.ViewObject:
+    #     import PathScripts.PathIconViewProvider
+
+    #     PathScripts.PathIconViewProvider.Attach(link.ViewObject, icon)
+    #     link.ViewObject.Visibility = False
+    #     link.ViewObject.Transparency = 80
+    obj.Document.recompute()  # necessary to create the link shape
+    return link
+
 
 def createModelResourceClone(obj, orig):
-    return createResourceClone(obj, orig, "Model", "BaseGeometry")
+    #return createResourceClone(obj, orig, "Model", "BaseGeometry")
+    return createResourceLink(obj, orig, "Model", "BaseGeometry")
 
 
 class NotificationClass(QtCore.QObject):
@@ -464,6 +481,8 @@ class ObjectJob:
 
     def baseObject(self, obj, base):
         """Return the base object, not its clone."""
+        if hasattr(base, "LinkedObject"):
+            return base.LinkedObject
         if isResourceClone(obj, base, "Model") or isResourceClone(obj, base, "Base"):
             return base.Objects[0]
         return base
