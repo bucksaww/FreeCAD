@@ -35,6 +35,7 @@ import PathScripts.PathCircularHoleBase as PathCircularHoleBase
 import PathScripts.PathLog as PathLog
 import PathScripts.PathOp as PathOp
 import PathScripts.PathUtils as PathUtils
+import PathMachineState
 
 __title__ = "Path Drilling Operation"
 __author__ = "sliptonic (Brad Collette)"

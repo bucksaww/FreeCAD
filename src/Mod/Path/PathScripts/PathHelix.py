@@ -20,11 +20,11 @@
 # *                                                                         *
 # ***************************************************************************
 
-from Generators import helix_generator as generator
+from Generators import helix_generator as helix_generator
+from Generators import rotation_generator as rotation_generator
 import FreeCAD
 import Path
 import PathMachineState
-import PathRotation
 import PathScripts.PathCircularHoleBase as PathCircularHoleBase
 import PathScripts.PathLog as PathLog
 import PathScripts.PathOp as PathOp
@@ -136,13 +136,17 @@ class ObjectHelix(PathCircularHoleBase.ObjectOp):
 
         PathLog.track(flatlist)
         for target in flatlist:
+            # get rotation
             if not target.Active:
                 continue
             (edge, diam) = target.Proxy.getShape(target)
             try:
-                rotation, edge = PathRotation.setRotationForEdgeCA(
-                    edge, aMin=0, aMax=90
-                )
+                vec = edge.Vertexes[1].Point.sub(edge.Vertexes[0].Point)
+                rotationcommands = rotation_generator.generatre(vec)
+
+                for command in rotationcommands:
+
+
             except ValueError:
                 FreeCAD.Console.PrintWarning(
                     "Target {} is not reachable with the current configuration\n".format(
@@ -180,7 +184,7 @@ class ObjectHelix(PathCircularHoleBase.ObjectOp):
             machine.addCommand(command)
 
             # Perform helix move
-            commands = generator.generate(
+            commands = helix_generator.generate(
                 edge=edge,
                 hole_radius=diam / 2,
                 step_down=obj.StepDown.Value,
