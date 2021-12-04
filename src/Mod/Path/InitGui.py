@@ -82,7 +82,7 @@ class PathWorkbench(Workbench):
 
         from PathScripts import PathToolBitCmd
         from PathScripts import PathToolBitLibraryCmd
-        from DocumentObservers import TargetWatch
+        # from DocumentObservers import TargetWatch
 
         import PathCommands
 
@@ -257,7 +257,7 @@ class PathWorkbench(Workbench):
         )
         Log("Loading Path workbench... done\n")
 
-        self.observer = TargetWatch()
+        # self.observer = TargetWatch()
         FreeCADGui.Selection.addObserver(self.observer)
 
     def GetClassName(self):
@@ -270,7 +270,7 @@ class PathWorkbench(Workbench):
 
     def Deactivated(self):
         # Msg("Path workbench deactivated\n")
-        FreeCADGui.Selection.removeObserver(self.observer)
+        # FreeCADGui.Selection.removeObserver(self.observer)
         pass
 
     def ContextMenu(self, recipient):

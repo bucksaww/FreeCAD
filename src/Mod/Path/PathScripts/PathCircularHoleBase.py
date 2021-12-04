@@ -151,7 +151,9 @@ class ObjectOp(PathOp.ObjectOp):
         Do not overwrite, implement circularHoleExecute(obj, holes) instead."""
         PathLog.track()
 
-        self.circularHoleExecute(obj)
+        holes = []
+
+        self.circularHoleExecute(obj, holes)
 
         # def haveLocations(self, obj):
         #     if PathOp.FeatureLocations & self.opFeatures(obj):

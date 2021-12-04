@@ -145,6 +145,7 @@ class ObjectHelix(PathCircularHoleBase.ObjectOp):
                 rotationcommands = rotation_generator.generatre(vec)
 
                 for command in rotationcommands:
+                    pass
 
 
             except ValueError:

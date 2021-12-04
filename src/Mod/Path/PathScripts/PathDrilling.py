@@ -153,6 +153,7 @@ class ObjectDrilling(PathCircularHoleBase.ObjectOp):
 
         self.commandlist.append(Path.Command("G90"))  # Absolute distance mode
 
+        PathLog.track()
         # Calculate offsets to add to target edge
         endoffset = 0.0
         if obj.ExtraOffset == "Drill Tip":
@@ -163,6 +164,7 @@ class ObjectDrilling(PathCircularHoleBase.ObjectOp):
         # http://linuxcnc.org/docs/html/gcode/g-code.html#gcode:g98-g99
         self.commandlist.append(Path.Command(obj.ReturnLevel))
 
+        PathLog.track()
         holes = PathUtils.sort_jobs(holes, ["x", "y"])
 
         # This section is technical debt. The computation of the
@@ -178,6 +180,7 @@ class ObjectDrilling(PathCircularHoleBase.ObjectOp):
             v2 = FreeCAD.Vector(hole["x"], hole["y"], obj.FinalDepth.Value - endoffset)
             edgelist.append(Part.makeLine(v1, v2))
 
+        PathLog.track()
         # iterate the edgelist and generate gcode
         for edge in edgelist:
 
