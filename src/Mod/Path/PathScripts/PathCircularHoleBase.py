@@ -151,31 +151,27 @@ class ObjectOp(PathOp.ObjectOp):
         Do not overwrite, implement circularHoleExecute(obj, holes) instead."""
         PathLog.track()
 
+        def haveLocations(self, obj):
+            if PathOp.FeatureLocations & self.opFeatures(obj):
+                return len(obj.Locations) != 0
+            return False
+
         holes = []
 
-        self.circularHoleExecute(obj, holes)
+        for base, subs in obj.Base:
+            for sub in subs:
+                PathLog.debug('processing {} in {}'.format(sub, base.Name))
+                if self.isHoleEnabled(obj, base, sub):
+                    pos = self.holePosition(obj, base, sub)
+                    if pos:
+                        holes.append({'x': pos.x, 'y': pos.y, 'r': self.holeDiameter(obj, base, sub)})
 
-        # def haveLocations(self, obj):
-        #     if PathOp.FeatureLocations & self.opFeatures(obj):
-        #         return len(obj.Locations) != 0
-        #     return False
+        if haveLocations(self, obj):
+            for location in obj.Locations:
+                holes.append({'x': location.x, 'y': location.y, 'r': 0})
 
-        # holes = []
-
-        # for base, subs in obj.Base:
-        #     for sub in subs:
-        #         PathLog.debug('processing {} in {}'.format(sub, base.Name))
-        #         if self.isHoleEnabled(obj, base, sub):
-        #             pos = self.holePosition(obj, base, sub)
-        #             if pos:
-        #                 holes.append({'x': pos.x, 'y': pos.y, 'r': self.holeDiameter(obj, base, sub)})
-
-        # if haveLocations(self, obj):
-        #     for location in obj.Locations:
-        #         holes.append({'x': location.x, 'y': location.y, 'r': 0})
-
-        # if len(holes) > 0:
-        #     self.circularHoleExecute(obj, holes)
+        if len(holes) > 0:
+            self.circularHoleExecute(obj, holes)
 
     def circularHoleExecute(self, obj, holes):
         """circularHoleExecute(obj, holes) ... implement processing of holes.
