@@ -39,9 +39,12 @@ DraftGeomUtils = LazyLoader('DraftGeomUtils', globals(), 'DraftGeomUtils')
 Part = LazyLoader('Part', globals(), 'Part')
 TechDraw = LazyLoader('TechDraw', globals(), 'TechDraw')
 
-PathLog.setLevel(PathLog.Level.INFO, PathLog.thisModule())
-# PathLog.trackModule(PathLog.thisModule())
 
+if True:
+        PathLog.setLevel(PathLog.Level.DEBUG, PathLog.thisModule())
+        PathLog.trackModule(PathLog.thisModule())
+else:
+        PathLog.setLevel(PathLog.Level.INFO, PathLog.thisModule())
 
 def translate(context, text, disambig=None):
     return QtCore.QCoreApplication.translate(context, text, disambig)
@@ -660,6 +663,10 @@ def sort_jobs(locations, keys, attractors=None):
         keys: two-element list of keys for X and Y coordinates. for example ['x','y']
         originally written by m0n5t3r for PathHelix
     """
+    PathLog.track("locations {} keys {} attractors {}".format(locations, keys, attractors))
+    if len(locations) == 0:
+            return locations
+
     if attractors is None:
         attractors = []
     try:

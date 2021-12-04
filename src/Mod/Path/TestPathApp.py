@@ -46,6 +46,7 @@ from PathTests.TestPathToolBit import TestPathToolBit
 from PathTests.TestPathToolController import TestPathToolController
 from PathTests.TestPathTooltable import TestPathTooltable
 from PathTests.TestPathUtil import TestPathUtil
+from PathTests.TestPathUtils import TestPathUtils
 from PathTests.TestPathVcarve import TestPathVcarve
 from PathTests.TestPathVoronoi import TestPathVoronoi
 
@@ -73,6 +74,7 @@ False if TestPathToolBit.__name__ else True
 False if TestPathToolController.__name__ else True
 False if TestPathTooltable.__name__ else True
 False if TestPathUtil.__name__ else True
+False if TestPathUtils.__name__ else True
 False if TestPathVcarve.__name__ else True
 False if TestPathVoronoi.__name__ else True
 False if TestPathDrillGenerator.__name__ else True

@@ -239,6 +239,7 @@ SET(PathTests_SRCS
     PathTests/TestPathToolController.py
     PathTests/TestPathTooltable.py
     PathTests/TestPathUtil.py
+    PathTests/TestPathUtils.py
     PathTests/TestPathVcarve.py
     PathTests/TestPathVoronoi.py
     PathTests/Tools/Bit/test-path-tool-bit-bit-00.fctb
