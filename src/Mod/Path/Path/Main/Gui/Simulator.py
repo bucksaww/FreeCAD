@@ -39,6 +39,12 @@ from lazy_loader.lazy_loader import LazyLoader
 Mesh = LazyLoader("Mesh", globals(), "Mesh")
 Part = LazyLoader("Part", globals(), "Part")
 
+if True:
+    PathLog.setLevel(PathLog.Level.DEBUG, PathLog.thisModule())
+    PathLog.trackModule(PathLog.thisModule())
+else:
+    PathLog.setLevel(PathLog.Level.INFO, PathLog.thisModule())
+
 if FreeCAD.GuiUp:
     import FreeCADGui
     from PySide import QtGui, QtCore
@@ -340,6 +346,7 @@ class PathSimulation:
                 r = math.sqrt((cmd.i or 0) ** 2 + (cmd.j or 0) ** 2)
                 n = math.ceil(math.sqrt(r / self.resolution * da * da))
                 da = da / n
+                PathLog.debug(f"cmd.z: {cmd.z} Base.z: {self.curpos.Base.z} n: {n}")
                 dz = (cmd.z - self.curpos.Base.z) / n
                 cmd.Name = "G1"
                 for i in range(n):
