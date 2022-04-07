@@ -33,7 +33,12 @@ def generate(
     extendLength and arcRadius can be used together in Arc style leadin.
 
     """
-    PathLog.debug(f"arcRadius: {arcRadius} style: {style} extendLength: {extendLength}")
+    PathLog.debug(
+        f"LeadIn: {leadIn}, arcRadius: {arcRadius} style: {style} extendLength: {extendLength}"
+    )
+
+    if PathLog.debug:
+        Part.show(segment)
 
     if not leadIn:
         # Reverse the segment.  A leadout is just a leadin from the other end.
@@ -97,13 +102,14 @@ def generate(
         if PathGeom.pointsCoincide(newArc.firstVertex().Point, segStart):
             newArc = PathGeom.flipEdge(newArc)
 
+        edges = [newArc]
         if extendLength > 0:  # Add the straight extension segment
             dir1 = newArc.tangentAt(newArc.FirstParameter)
             segStart = newArc.firstVertex().Point
             startPoint = Vector(dir1.multiply(el)) + segStart
-            line = Part.makeLine(startPoint, segStart)
+            edges.append(Part.makeLine(startPoint, segStart))
 
-        resultwire = Part.Wire([newArc, line])
+        resultwire = Part.Wire(edges)
 
     # make sure the wire is oriented correctly
     if leadIn and PathGeom.pointsCoincide(resultwire.Vertexes[0].Point, segStart):
@@ -129,5 +135,7 @@ def generate(
 
     for e in resultwire.Edges:
         commands.extend(PathGeom.cmdsForEdge(e))
+
+    PathLog.debug(commands)
 
     return commands

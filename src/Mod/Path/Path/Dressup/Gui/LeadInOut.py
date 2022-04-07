@@ -26,16 +26,13 @@ from __future__ import print_function
 import FreeCAD
 import FreeCADGui
 import Path
+from PathPythonGui.simple_edit_panel import SimpleEditPanel
+import Generators.leadin_generator as leadin_generator
+import PathMachineState
 import PathScripts.PathDressup as PathDressup
 import PathScripts.PathGeom as PathGeom
 import PathScripts.PathLog as PathLog
 import PathScripts.PathUtils as PathUtils
-import math
-import copy
-
-import Generators.leadin_generator as leadin_generator
-
-import PathMachineState
 
 from PathScripts.PathGeom import (
     CmdMoveRapid,
@@ -45,10 +42,8 @@ from PathScripts.PathGeom import (
 
 __doc__ = """LeadInOut Dressup USE ROLL-ON ROLL-OFF to profile"""
 
+
 from PySide.QtCore import QT_TRANSLATE_NOOP
-
-from PathPythonGui.simple_edit_panel import SimpleEditPanel
-
 translate = FreeCAD.Qt.translate
 
 if True:
@@ -60,6 +55,7 @@ else:
 
 movecommands = CmdMoveStraight + CmdMoveArc
 # currLocation = {}
+
 
 class ObjectDressup:
     def __init__(self, obj):
@@ -93,15 +89,6 @@ class ObjectDressup:
             "Path",
             QT_TRANSLATE_NOOP("App::Property", "Keep the Tool Down in Path"),
         )
-        # obj.addProperty(
-        #     "App::PropertyBool",
-        #     "UseMachineCRC",
-        #     "Path",
-        #     QT_TRANSLATE_NOOP(
-        #         "App::Property",
-        #         "Use Machine Cutter Radius Compensation /Tool Path Offset G41/G42",
-        #     ),
-        # )
         obj.addProperty(
             "App::PropertyDistance",
             "Length",
@@ -114,27 +101,12 @@ class ObjectDressup:
             "Path",
             QT_TRANSLATE_NOOP("App::Property", "The Style of motion into the Path"),
         )
-        obj.StyleOn = lead_styles
         obj.addProperty(
             "App::PropertyEnumeration",
             "StyleOff",
             "Path",
             QT_TRANSLATE_NOOP("App::Property", "The Style of motion out of the Path"),
         )
-        obj.StyleOff = lead_styles
-        obj.addProperty(
-            "App::PropertyEnumeration",
-            "RadiusCenter",
-            "Path",
-            QT_TRANSLATE_NOOP(
-                "App::Property", "The Mode of Point Radiusoffset or Center"
-            ),
-        )
-        obj.RadiusCenter = [
-            QT_TRANSLATE_NOOP("Path_DressupLeadInOut", "Radius"),
-            QT_TRANSLATE_NOOP("Path_DressupLeadInOut", "Center"),
-        ]
-        obj.Proxy = self
         obj.addProperty(
             "App::PropertyDistance",
             "ExtendLeadIn",
@@ -162,6 +134,10 @@ class ObjectDressup:
             ),
         )
 
+        obj.StyleOn = lead_styles
+        obj.StyleOff = lead_styles
+        obj.Proxy = self
+
         self.wire = None
         self.rapids = None
 
@@ -177,10 +153,8 @@ class ObjectDressup:
         obj.LeadIn = True
         obj.LeadOut = True
         obj.KeepToolDown = False
-        # obj.UseMachineCRC = False
         obj.StyleOn = "Arc"
         obj.StyleOff = "Arc"
-        # obj.RadiusCenter = "Radius"
         obj.ExtendLeadIn = 0
         obj.ExtendLeadOut = 0
         obj.RapidPlunge = False
@@ -211,19 +185,21 @@ class ObjectDressup:
         # Marshall the arguments for the leadin generator
         leadinargs = {
             "segment": None,
-            "leadIn": True
-            "length": obj.Length,
+            "leadIn": True,
+            "direction": "CCW",
+            "arcRadius": obj.Length,
             "style": obj.StyleOn,
-            "extend": obj.ExtendLeadIn,
+            "extendLength": obj.ExtendLeadIn,
         }
 
         # Marshall the arguments for the leadout generator
         leadoutargs = {
             "segment": None,
-            "leadIn": False
-            "length": obj.Length,
+            "leadIn": False,
+            "direction": "CW",
+            "arcRadius": obj.Length,
             "style": obj.StyleOff,
-            "extend": obj.ExtendLeadOut,
+            "extendLength": obj.ExtendLeadOut,
         }
 
         newpath = []
@@ -247,19 +223,25 @@ class ObjectDressup:
             if curCommand.Name in CmdMoveRapid:
                 if newpath[-1].Name in movecommands:
                     # leadout needed
-                    leadoutcommands = leadin_generator.generate(**leadoutargs)
-                    for c in leadoutcommands:
-                        newpath.append(c)
-                        machine.addCommand(curCommand)
+                    if obj.LeadOut:
+                        PathLog.track()
+                        lastpoint = machine.getPosition()
+                        edge = PathGeom.edgeForCmd(curCommand, lastpoint)
+                        leadoutargs["segment"] = edge
+                        leadoutcommands = leadin_generator.generate(**leadoutargs)
+                        for c in leadoutcommands:
+                            newpath.append(c)
+                            machine.addCommand(curCommand)
 
-                    # Explicitly retract to safeheight
-                    endpos = leadoutcommands[-1]
-                    command = Path.Command(
-                        "G0", {"X": endpos.x, "Y": endpos.y, "Z": curCommand.z}
-                    )
-                    newpath.append(command)
-                    machine.addCommand(curCommand)
-                else:
+                        # Explicitly retract to safeheight
+                        endpos = leadoutcommands[-1]
+                        command = Path.Command(
+                            "G0", {"X": endpos.x, "Y": endpos.y, "Z": curCommand.z}
+                        )
+                        newpath.append(command)
+                        machine.addCommand(command)
+
+                else:  # add rapids that don't precede feed
                     newpath.append(curCommand)
                     machine.addCommand(curCommand)
 
@@ -270,32 +252,35 @@ class ObjectDressup:
                 PathLog.debug(f"last: {newpath[-1].Name}")
                 last = newpath[-1]
                 if last.Name in CmdMoveRapid:
-                    if curCommand.z != last.z: # Old entry feed move
+                    if curCommand.z != last.z:  # Old entry feed move
                         command = Path.Command(
-                            "G0", {"X": curCommand.x, "Y": curCommand.y, "Z": curCommand.z}
+                            "G0",
+                            {"X": curCommand.x, "Y": curCommand.y, "Z": curCommand.z},
                         )
                         if machine.addCommand(curCommand):
                             newpath.append(command)
                         continue
 
                     # leadin needed
-                    lastpoint = machine.getPosition()
-                    edge = PathGeom.edgeForCmd(curCommand, lastpoint)
-                    leadinargs['segment'] = edge
-                    leadincommands = leadin_generator.generate(**leadinargs)
+                    if obj.LeadIn:
+                        PathLog.track()
+                        lastpoint = machine.getPosition()
+                        edge = PathGeom.edgeForCmd(curCommand, lastpoint)
+                        leadinargs["segment"] = edge
+                        leadincommands = leadin_generator.generate(**leadinargs)
 
-                    # extract the new start point and rapid to safe height
-                    # above
-                    startpos = leadincommands[0]
-                    command = Path.Command(
-                        "G0", {"X": startpos.x, "Y": startpos.y, "Z": curCommand.z}
-                    )
-                    newpath.append(command)
-                    machine.addCommand(command)
+                        # extract the new start point and rapid to safe height
+                        # above
+                        startpos = leadincommands[0]
+                        command = Path.Command(
+                            "G0", {"X": startpos.x, "Y": startpos.y, "Z": curCommand.z}
+                        )
+                        newpath.append(command)
+                        machine.addCommand(command)
 
-                    for c in leadincommands:
-                        newpath.append(c)
-                        machine.addCommand(c)
+                        for c in leadincommands:
+                            newpath.append(c)
+                            machine.addCommand(c)
 
                     newpath.append(curCommand)
                     machine.addCommand(curCommand)
@@ -320,7 +305,6 @@ class TaskDressupLeadInOut(SimpleEditPanel):
         self.connectWidget("ExtendLeadOut", self.form.dsbExtendOut)
         self.connectWidget("StyleOn", self.form.cboStyleIn)
         self.connectWidget("StyleOff", self.form.cboStyleOut)
-        self.connectWidget("RadiusCenter", self.form.cboRadius)
         self.connectWidget("RapidPlunge", self.form.chkRapidPlunge)
         self.connectWidget("IncludeLayers", self.form.chkLayers)
         self.connectWidget("KeepToolDown", self.form.chkKeepToolDown)
