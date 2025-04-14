@@ -2,10 +2,10 @@
 
 The FreeCAD community thanks you for your contribution!
 
-<!-- By creating a PR you agree to the contributing guidelines (https://github.com/FreeCAD/FreeCAD/blob/main/CONTRIBUTING.md) -->
+
 Please include a brief summary of the changes and link to individual issues this PR closes (e.g., fixes #1234, closes #4321).
 
-By creating a PR you agree to the contributing guidelines (https://github.com/FreeCAD/FreeCAD/blob/main/CONTRIBUTING.md)
+<!-- By creating a PR you agree to the contributing guidelines (https://github.com/FreeCAD/FreeCAD/blob/main/CONTRIBUTING.md) -->
 
 ## Review Process
 
